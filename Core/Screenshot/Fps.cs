@@ -13,19 +13,19 @@
         /// <summary>
         /// Gets the frames per second.
         /// </summary>
-        public double FramesPerSecond { get; }
+        public int FramesPerSecond { get; }
 
         /// <summary>
         /// Initializes a new instance of the Fps class.
         /// </summary>
         /// <param name="framesPerSecond">The desired frames per second.</param>
-        private Fps(double framesPerSecond)
+        private Fps(int framesPerSecond)
         {
             FramesPerSecond = framesPerSecond;
             Delay = (int)(1000 / framesPerSecond);
         }
 
-        public static Fps CreateInstance(double framesPerSecond)
+        public static Fps CreateInstance(int framesPerSecond)
         {
             return new Fps(framesPerSecond);
         }

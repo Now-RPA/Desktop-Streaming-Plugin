@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{F7A65207-D61F-4C7F-B901-3AEF63F776C0}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>DesktopStreaming</RootNamespace>
     <AssemblyName>DesktopStreaming</AssemblyName>
@@ -58,7 +58,6 @@
     <Compile Include="Core\Server\ServerSocketExtension.cs" />
     <Compile Include="Core\Server\StreamingServer.cs" />
     <Compile Include="DesktopStreamer.cs" />
-    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup />

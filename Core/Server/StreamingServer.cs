@@ -11,19 +11,16 @@ using System.Threading;
 
 namespace DesktopStreaming.Core.Server
 {
-    public sealed class StreamingServer : IDisposable
+    public sealed class StreamingServer
     {
         private static readonly object SyncRoot = new();
         private static StreamingServer _serverInstance;
 
-        private readonly IEnumerable<Image> _images;
+        private IEnumerable<Image> _images;
         private Socket _serverSocket;
         private Thread _thread;
         private readonly IAuthenticationService _authService;
         private Fps Fps { get; }
-        private volatile bool _stopping;
-        private volatile bool _disposed;
-        private readonly object _stopLock = new();
         public List<Socket> Clients { get; }
         private bool IsRunning => _thread is { IsAlive: true };
 
@@ -55,7 +52,6 @@ namespace DesktopStreaming.Core.Server
 
         public void Start(IPAddress ipAddress, int port)
         {
-            ThrowIfDisposed();
             var serverConfig = new ServerConfig(ipAddress, port);
 
             lock (this)
@@ -149,7 +145,7 @@ namespace DesktopStreaming.Core.Server
             }
             catch (Exception)
             {
-                // Handle or log the exception as needed
+                // ignored
             }
             finally
             {
@@ -191,90 +187,30 @@ namespace DesktopStreaming.Core.Server
 
         public string GenerateAuthKey()
         {
-            ThrowIfDisposed();
             return _authService.GenerateAuthKey();
         }
 
         public void Stop()
         {
-            lock (_stopLock)
-            {
-                if (_disposed)
-                {
-                    throw new ObjectDisposedException(nameof(StreamingServer));
-                }
-
-                if (!IsRunning || _stopping)
-                {
-                    return;
-                }
-
-                _stopping = true;
-            }
-
-            try
-            {
-                _serverSocket?.Shutdown(SocketShutdown.Both);
-            }
-            catch (SocketException)
-            {
-                // Socket was already closed or another error occurred
-            }
-            finally
-            {
-                _serverSocket?.Close();
-                _thread?.Join(TimeSpan.FromSeconds(5)); // Wait for the thread to finish
-
-                _serverSocket = null;
-                _thread = null;
-                _stopping = false;
-            }
-        }
-
-        public void Dispose()
-        {
-            if (_disposed)
+            if (!IsRunning)
             {
                 return;
             }
 
-            Stop();
-
-            foreach (var client in Clients)
+            try
             {
-                try
-                {
-                    client.Shutdown(SocketShutdown.Both);
-                    client.Close();
-                    client.Dispose();
-                }
-                catch (Exception)
-                {
-                    // Log or handle exception if needed
-                }
+                _serverSocket.Shutdown(SocketShutdown.Both);
             }
-
-            Clients.Clear();
-
-            if (_images is IDisposable disposableImages)
+            catch
             {
-                disposableImages.Dispose();
+                _serverSocket.Close();
             }
-
-            _disposed = true;
-        }
-
-        private void ThrowIfDisposed()
-        {
-            if (_disposed)
+            finally
             {
-                throw new ObjectDisposedException(nameof(StreamingServer));
+                _thread = null;
+                _images = null;
+                _serverInstance = null;
             }
-        }
-
-        ~StreamingServer()
-        {
-            Dispose();
         }
     }
 }
