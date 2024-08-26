@@ -9,30 +9,30 @@ namespace DesktopStreaming.Core.Screenshot
     public static class Screenshot
     {
         [StructLayout(LayoutKind.Sequential)]
-        struct POINT
+        struct Point
         {
             public int X;
             public int Y;
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        struct CURSORINFO
+        struct Cursorinfo
         {
             public int cbSize;
             public int flags;
             public IntPtr hCursor;
-            public POINT ptScreenPos;
+            public Point ptScreenPos;
         }
 
         [DllImport("user32.dll")]
-        static extern bool GetCursorInfo(out CURSORINFO pci);
+        static extern bool GetCursorInfo(out Cursorinfo pci);
 
         [DllImport("user32.dll")]
         static extern bool DrawIconEx(IntPtr hdc, int xLeft, int yTop, IntPtr hIcon,
             int cxWidth, int cyWidth, uint istepIfAniCur, IntPtr hbrFlickerFreeDraw,
             uint diFlags);
 
-        const int CURSOR_SHOWING = 0x00000001;
+        const int CursorShowing = 0x00000001;
 
         public static IEnumerable<Image> TakeSeriesOfScreenshots(Resolution.Resolutions requiredResolution,
             bool isDisplayCursor)
@@ -78,10 +78,10 @@ namespace DesktopStreaming.Core.Screenshot
 
         private static void AddCursorToScreenshot(Graphics graphics, Size screenSize, Size captureSize)
         {
-            CURSORINFO cursorInfo = new CURSORINFO();
+            Cursorinfo cursorInfo = new();
             cursorInfo.cbSize = Marshal.SizeOf(cursorInfo);
 
-            if (GetCursorInfo(out cursorInfo) && cursorInfo.flags == CURSOR_SHOWING)
+            if (GetCursorInfo(out cursorInfo) && cursorInfo.flags == CursorShowing)
             {
                 float scaleX = (float)captureSize.Width / screenSize.Width;
                 float scaleY = (float)captureSize.Height / screenSize.Height;

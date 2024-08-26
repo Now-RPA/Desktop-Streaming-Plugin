@@ -8,7 +8,7 @@ namespace DesktopStreaming
 {
     class Program
     {
-        static void Main(string[] args)
+        static void Main()
         {
             Console.WriteLine("Desktop Streaming Server Test");
             Console.WriteLine("-----------------------------");

@@ -114,7 +114,8 @@ namespace DesktopStreaming.Core.Server
             {
                 using var stream = new NetworkStream(clientSocket, true);
                 using var reader = new StreamReader(stream);
-                using var writer = new StreamWriter(stream) { AutoFlush = true };
+                using var writer = new StreamWriter(stream);
+                writer.AutoFlush = true;
 
                 // Read the request line
                 string request = reader.ReadLine();

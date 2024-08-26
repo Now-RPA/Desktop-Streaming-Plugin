@@ -10,14 +10,14 @@ namespace DesktopStreaming.Core.Screenshot
     {
         #region Screen resolutions
 
-        private const int QuadHDWidth = 2560;
-        private const int QuadHDHeight = 1440;
+        private const int QuadHdWidth = 2560;
+        private const int QuadHdHeight = 1440;
 
-        private const int FullHDWidth = 1920;
-        private const int FullHDHeight = 1080;
+        private const int FullHdWidth = 1920;
+        private const int FullHdHeight = 1080;
 
-        private const int HDWidth = 1280;
-        private const int HDHeight = 720;
+        private const int HdWidth = 1280;
+        private const int HdHeight = 720;
 
         #endregion
 
@@ -26,9 +26,9 @@ namespace DesktopStreaming.Core.Screenshot
         /// </summary>
         public enum Resolutions
         {
-            QuadHD,
-            FullHD,
-            HD
+            QuadHd,
+            FullHd,
+            Hd
         }
 
         /// <summary>
@@ -40,9 +40,9 @@ namespace DesktopStreaming.Core.Screenshot
         {
             return resolution switch
             {
-                Resolutions.QuadHD => new Size(QuadHDWidth, QuadHDHeight),
-                Resolutions.FullHD => new Size(FullHDWidth, FullHDHeight),
-                Resolutions.HD => new Size(HDWidth, HDHeight),
+                Resolutions.QuadHd => new Size(QuadHdWidth, QuadHdHeight),
+                Resolutions.FullHd => new Size(FullHdWidth, FullHdHeight),
+                Resolutions.Hd => new Size(HdWidth, HdHeight),
                 _ => throw new ArgumentOutOfRangeException(nameof(resolution), resolution, null)
             };
         }
@@ -56,9 +56,9 @@ namespace DesktopStreaming.Core.Screenshot
         {
             return resolution switch
             {
-                Resolutions.QuadHD => "Quad HD (2560x1440)",
-                Resolutions.FullHD => "Full HD (1920x1080)",
-                Resolutions.HD => "HD (1280x720)",
+                Resolutions.QuadHd => "Quad HD (2560x1440)",
+                Resolutions.FullHd => "Full HD (1920x1080)",
+                Resolutions.Hd => "HD (1280x720)",
                 _ => throw new ArgumentOutOfRangeException(nameof(resolution), resolution, null)
             };
         }

@@ -10,7 +10,7 @@ namespace DesktopStreaming
     {
         private static StreamingServer _streamingServer;
 
-        public static string StartStreaming(string ipAddress, int port, Resolutions resolution = Resolutions.FullHD, double fps = 60, bool displayCursor = true)
+        public static string StartStreaming(string ipAddress, int port, Resolutions resolution = Resolutions.FullHd, double fps = 60, bool displayCursor = true)
         {
             IPAddress ip = IPAddress.Parse(ipAddress);
 
