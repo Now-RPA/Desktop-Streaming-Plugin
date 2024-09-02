@@ -70,15 +70,15 @@ public static class Resolution
     #region Display Resolution
 
     [DllImport("gdi32.dll", CharSet = CharSet.Auto, SetLastError = true, ExactSpelling = true)]
-    public static extern int GetDeviceCaps(IntPtr hDC, int nIndex);
+    private static extern int GetDeviceCaps(IntPtr hDC, int nIndex);
 
-    public enum DeviceCap
+    private enum DeviceCap
     {
         DESKTOPVERTRES = 117,
         DESKTOPHORZRES = 118
     }
 
-    public static Size GetDisplayResolution()
+    private static Size GetDisplayResolution()
     {
         // Create Graphics object from the current windows handle
         Graphics graphicsObject = Graphics.FromHwnd(IntPtr.Zero);

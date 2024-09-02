@@ -212,7 +212,7 @@ namespace DesktopStreaming.Core.Server
             _serverTask?.Wait(TimeSpan.FromSeconds(5));
 
             // Wait for all client tasks to complete with a timeout
-            Task.WaitAll(ClientTasks.ToArray(), TimeSpan.FromSeconds(5));
+            Task.WaitAll([.. ClientTasks], TimeSpan.FromSeconds(5));
 
             ClientTasks.Clear();
 

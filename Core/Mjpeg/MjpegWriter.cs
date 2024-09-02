@@ -8,14 +8,12 @@ namespace DesktopStreaming.Core.Mjpeg;
 /// Provides a stream writer that can be used to write images as MJPEG 
 /// to any stream.
 /// </summary>
-internal class MjpegWriter : IDisposable
+/// <remarks>
+/// The constructor of the class that initializes the fields of the class.
+/// </remarks>
+internal class MjpegWriter(Stream stream) : IDisposable
 {
-    private Stream _stream;
-
-    /// <summary>
-    /// The constructor of the class that initializes the fields of the class.
-    /// </summary>
-    public MjpegWriter(Stream stream) => _stream = stream;
+    private Stream _stream = stream;
 
     /// <summary>
     /// Writes response headers to a stream.
