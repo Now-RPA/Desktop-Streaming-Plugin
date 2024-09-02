@@ -8,7 +8,7 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>DesktopStreaming</RootNamespace>
-    <AssemblyName>DesktopStreaming</AssemblyName>
+    <AssemblyName>Desktop Streaming</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -49,13 +49,12 @@
     <Compile Include="Core\Mjpeg\MjpegConstants.cs" />
     <Compile Include="Core\Mjpeg\MjpegStream.cs" />
     <Compile Include="Core\Mjpeg\MjpegWriter.cs" />
-    <Compile Include="Core\Screenshot\ApplicationWindow.cs" />
-    <Compile Include="Core\Screenshot\Fps.cs" />
-    <Compile Include="Core\Screenshot\MouseCursor.cs" />
-    <Compile Include="Core\Screenshot\Resolution.cs" />
-    <Compile Include="Core\Screenshot\Screenshot.cs" />
+    <Compile Include="Core\Video\ApplicationWindow.cs" />
+    <Compile Include="Core\Video\Fps.cs" />
+    <Compile Include="Core\Video\MouseCursor.cs" />
+    <Compile Include="Core\Video\Resolution.cs" />
+    <Compile Include="Core\Video\Screenshot.cs" />
     <Compile Include="Core\Server\ServerConfig.cs" />
-    <Compile Include="Core\Server\ServerSocketExtension.cs" />
     <Compile Include="Core\Server\StreamingServer.cs" />
     <Compile Include="DesktopStreamer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

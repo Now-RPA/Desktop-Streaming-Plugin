@@ -1,40 +1,29 @@
-﻿using DesktopStreaming.Core.Screenshot;
-using DesktopStreaming.Core.Server;
+﻿using DesktopStreaming.Core.Server;
+using DesktopStreaming.Core.Video;
 using System;
+using System.AddIn;
 using System.Net;
 
-namespace DesktopStreaming
+namespace DesktopStreaming;
+
+[AddIn("Desktop Streaming")]
+public class DesktopStreamer
 {
-    [System.AddIn.AddIn("Desktop Streaming", Description = "Stream desktop over HTTP", Version = "2.0")]
-    public class DesktopStreamer
+    public static string StartStreaming(string ipAddress, int port, int fps = 60, bool displayCursor = true)
     {
-        private static StreamingServer _streamingServer;
-
-        public static string StartStreaming(string ipAddress, int port, int fps = 60, bool displayCursor = true)
+        try
         {
-            try
-            {
-                IPAddress ip = IPAddress.Parse(ipAddress);
-                _streamingServer = StreamingServer.GetInstance(Resolution.Resolutions.Current, Fps.CreateInstance(fps), displayCursor);
-                _streamingServer.Start(ip, port);
-
-                string authKey = _streamingServer.GenerateAuthKey();
-                string url = $"http://{ipAddress}:{port}/?auth={authKey}";
-                return url;
-            }
-            catch (Exception ex)
-            {
-                throw new($"Unable to start streaming on port {port}: {ex.Message}", ex);
-            }
+            IPAddress ip = IPAddress.Parse(ipAddress);
+            return StreamingServer.Instance.Start(ip, port, Resolution.Resolutions.Current, Fps.CreateInstance(fps), displayCursor);
         }
-
-        public static void StopStreaming()
+        catch (Exception ex)
         {
-            if (_streamingServer != null)
-            {
-                _streamingServer.Stop();
-                _streamingServer = null;
-            }
+            throw new Exception($"Unable to start streaming on port {port}: {ex.Message}", ex);
         }
+    }
+
+    public static void StopStreaming()
+    {
+        StreamingServer.Instance.Stop();
     }
 }

@@ -1,6 +1,6 @@
 ﻿using DesktopStreaming.Authentication;
 using DesktopStreaming.Core.Mjpeg;
-using DesktopStreaming.Core.Screenshot;
+using DesktopStreaming.Core.Video;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -8,167 +8,173 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DesktopStreaming.Core.Server
 {
-    public sealed class StreamingServer
+    public sealed class StreamingServer : IDisposable
     {
-        private static readonly object SyncRoot = new();
-        private static StreamingServer _serverInstance;
+        private static readonly Lazy<StreamingServer> LazyInstance =
+            new(() => new StreamingServer(), LazyThreadSafetyMode.ExecutionAndPublication);
+
+        public static StreamingServer Instance => LazyInstance.Value;
 
         private IEnumerable<Image> _images;
         private Socket _serverSocket;
-        private Thread _thread;
+        private Task _serverTask;
         private readonly IAuthenticationService _authService;
-        private Fps Fps { get; }
-        public List<Socket> Clients { get; }
-        private bool IsRunning => _thread is { IsAlive: true };
+        private Fps Fps { get; set; }
+        private Resolution.Resolutions Resolution { get; set; }
+        private bool DisplayCursor { get; set; }
+        private List<Task> ClientTasks { get; } = [];
+        private volatile bool _isRunning;
+        private string _currentUrl;
+        private CancellationTokenSource _cts = new();
 
-        private StreamingServer(Resolution.Resolutions imageResolution, Fps fps, bool isDisplayCursor)
-            : this(Screenshot.Screenshot.TakeSeriesOfScreenshots(imageResolution, isDisplayCursor), fps)
+        private StreamingServer()
         {
-        }
-
-        private StreamingServer(IEnumerable<Image> images, Fps fps)
-        {
-            _thread = null;
-            _images = images;
-
-            Clients = [];
-            Fps = fps;
             _authService = new SimpleAuthenticationService();
         }
 
-        public static StreamingServer GetInstance(Resolution.Resolutions resolutions,
-            Fps fps, bool isDisplayCursor)
+        public string Start(IPAddress ipAddress, int port, Resolution.Resolutions resolution, Fps fps, bool displayCursor)
         {
-            lock (SyncRoot)
+            if (_isRunning)
             {
-                _serverInstance ??= new StreamingServer(resolutions, fps, isDisplayCursor);
+                Stop(); // Stop the existing stream if running
             }
 
-            return _serverInstance;
-        }
+            Resolution = resolution;
+            Fps = fps;
+            DisplayCursor = displayCursor;
 
-        public void Start(IPAddress ipAddress, int port)
-        {
+            _images = Screenshot.TakeSeriesOfScreenshots(Resolution, DisplayCursor);
+
             var serverConfig = new ServerConfig(ipAddress, port);
 
-            lock (this)
-            {
-                _thread = new Thread(StartServerThread)
-                {
-                    IsBackground = true
-                };
+            _serverTask = Task.Run(() => StartServerAsync(serverConfig));
 
-                _thread.Start(serverConfig);
-            }
+            _isRunning = true;
+
+            string authKey = _authService.GenerateAuthKey();
+            _currentUrl = $"http://{ipAddress}:{port}/?auth={authKey}";
+
+            return _currentUrl;
         }
 
-        private void StartServerThread(object config)
+        private async Task StartServerAsync(ServerConfig config)
         {
-            var serverConfig = (ServerConfig)config;
-
             try
             {
-                _serverSocket = new Socket(AddressFamily.InterNetwork,
-                    SocketType.Stream, ProtocolType.Tcp);
-
-                _serverSocket.Bind(new IPEndPoint(serverConfig.IpAddress,
-                    serverConfig.Port));
+                _serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                _serverSocket.Bind(new IPEndPoint(config.IpAddress, config.Port));
                 _serverSocket.Listen(10);
 
-                foreach (var client in _serverSocket.GetIncomingConnections())
-                {
-                    ThreadPool.QueueUserWorkItem(StartClientThread, client);
-                }
-            }
-            catch (SocketException)
-            {
-                foreach (var client in Clients.ToArray())
+                while (_isRunning)
                 {
                     try
                     {
-                        client.Shutdown(SocketShutdown.Both);
+                        Socket clientSocket = await Task.Factory.FromAsync(
+                            _serverSocket.BeginAccept, _serverSocket.EndAccept, null);
+
+                        var clientTask = HandleClientAsync(clientSocket, _cts.Token);
+
+                        lock (ClientTasks)
+                        {
+                            ClientTasks.Add(clientTask);
+                        }
+                        CleanupCompletedTasks();
+                    }
+                    catch (SocketException)
+                    {
+                        // The server socket was closed, which is expected during shutdown
+                        break;
                     }
                     catch (ObjectDisposedException)
                     {
-                        client.Close();
+                        // Socket was disposed, exit the loop
+                        break;
                     }
-
-                    Clients.Remove(client);
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Fatal error in server task: {ex.Message}");
+                _isRunning = false;
             }
         }
 
-        private void StartClientThread(object client)
+        private void CleanupCompletedTasks()
         {
-            var clientSocket = (Socket)client;
-            clientSocket.SendTimeout = 10000;
+            lock (ClientTasks)
+            {
+                ClientTasks.RemoveAll(t => t.IsCompleted);
+            }
+        }
+
+        private async Task HandleClientAsync(Socket clientSocket, CancellationToken cancellationToken)
+        {
+            Task currentTask;  // Placeholder task
+            lock (ClientTasks)
+            {
+                currentTask = Task.Run(() => { }, cancellationToken); // Create a unique task for this client
+                ClientTasks.Add(currentTask);
+            }
 
             try
             {
-                using var stream = new NetworkStream(clientSocket, true);
-                using var reader = new StreamReader(stream);
-                using var writer = new StreamWriter(stream);
-                writer.AutoFlush = true;
-
-                // Read the request line
-                string request = reader.ReadLine();
-                if (string.IsNullOrEmpty(request))
+                using (clientSocket)
+                using (var stream = new NetworkStream(clientSocket, true))
+                using (var reader = new StreamReader(stream))
+                using (var writer = new StreamWriter(stream))
                 {
-                    return;
-                }
+                    writer.AutoFlush = true;
+                    string request = await reader.ReadLineAsync();
+                    if (string.IsNullOrEmpty(request))
+                    {
+                        return;
+                    }
 
-                // Parse the auth key from the request
-                string authKey = ParseAuthKey(request);
+                    string authKey = ParseAuthKey(request);
 
-                if (!_authService.ValidateAuthKey(authKey))
-                {
-                    writer.WriteLine("HTTP/1.1 401 Unauthorized");
-                    writer.WriteLine("Content-Type: text/plain");
-                    writer.WriteLine();
-                    writer.WriteLine("Invalid authentication key");
-                    return;
-                }
+                    if (!_authService.ValidateAuthKey(authKey))
+                    {
+                        await writer.WriteLineAsync("HTTP/1.1 401 Unauthorized");
+                        await writer.WriteLineAsync("Content-Type: text/plain");
+                        await writer.WriteLineAsync();
+                        await writer.WriteLineAsync("Invalid authentication key");
+                        return;
+                    }
 
-                Clients.Add(clientSocket);
+                    using var mjpegWriter = new MjpegWriter(stream);
+                    mjpegWriter.WriteHeaders();
 
-                using var mjpegWriter = new MjpegWriter(stream);
-                mjpegWriter.WriteHeaders();
-
-                foreach (var imgStream in _images.GetMjpegStream())
-                {
-                    Thread.Sleep(Fps.Delay);
-                    mjpegWriter.WriteImage(imgStream);
+                    foreach (var imgStream in _images.GetMjpegStream())
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await Task.Delay(Fps.Delay, cancellationToken);
+                        mjpegWriter.WriteImage(imgStream);
+                    }
                 }
             }
-            catch (Exception)
+            catch (OperationCanceledException)
             {
-                // ignored
+                // Normal cancellation, no need to log
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error handling client: {ex.Message}");
             }
             finally
             {
-                try
+                lock (ClientTasks)
                 {
-                    clientSocket.Shutdown(SocketShutdown.Both);
-                }
-                catch (ObjectDisposedException)
-                {
-                    clientSocket.Close();
-                }
-
-                lock (Clients)
-                {
-                    Clients.Remove(clientSocket);
+                    ClientTasks.Remove(currentTask);
                 }
             }
         }
 
         private string ParseAuthKey(string request)
         {
-            // Simple parsing of the auth key from the request
-            // Assumes the format: "GET /?auth=key HTTP/1.1"
             int authIndex = request.IndexOf("auth=", StringComparison.Ordinal);
             if (authIndex == -1)
             {
@@ -185,32 +191,54 @@ namespace DesktopStreaming.Core.Server
             return request.Substring(keyStart, keyEnd - keyStart);
         }
 
-        public string GenerateAuthKey()
-        {
-            return _authService.GenerateAuthKey();
-        }
-
         public void Stop()
         {
-            if (!IsRunning)
-            {
+            if (!_isRunning)
                 return;
-            }
+
+            _isRunning = false;
+            _cts.Cancel();
 
             try
             {
-                _serverSocket.Shutdown(SocketShutdown.Both);
+                _serverSocket?.Close();
             }
-            catch
+            catch (Exception ex)
             {
-                _serverSocket.Close();
+                Console.WriteLine($"Exception closing server socket: {ex.Message}");
             }
-            finally
+
+            // Wait for the server task to complete
+            _serverTask?.Wait(TimeSpan.FromSeconds(5));
+
+            // Wait for all client tasks to complete with a timeout
+            Task.WaitAll(ClientTasks.ToArray(), TimeSpan.FromSeconds(5));
+
+            ClientTasks.Clear();
+
+            if (_images is IDisposable disposableImages)
             {
-                _thread = null;
-                _images = null;
-                _serverInstance = null;
+                disposableImages.Dispose();
             }
+
+            _serverTask = null;
+            _images = null;
+            _serverSocket = null;
+            _currentUrl = null;
+
+            ResetCancellationTokenSource();
+        }
+
+        private void ResetCancellationTokenSource()
+        {
+            _cts.Dispose();
+            _cts = new CancellationTokenSource();
+        }
+
+        public void Dispose()
+        {
+            Stop();
+            _cts.Dispose();
         }
     }
 }

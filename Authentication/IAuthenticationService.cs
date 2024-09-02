@@ -1,8 +1,7 @@
-﻿namespace DesktopStreaming.Authentication
+﻿namespace DesktopStreaming.Authentication;
+
+public interface IAuthenticationService
 {
-    public interface IAuthenticationService
-    {
-        string GenerateAuthKey();
-        bool ValidateAuthKey(string authKey);
-    }
+    string GenerateAuthKey();
+    bool ValidateAuthKey(string authKey);
 }

@@ -1,11 +1,10 @@
 ﻿using System.Net;
 
-namespace DesktopStreaming.Core.Server
-{
-    internal class ServerConfig(IPAddress ipAddress, int port)
-    {
-        public IPAddress IpAddress { get; } = ipAddress;
+namespace DesktopStreaming.Core.Server;
 
-        public int Port { get; } = port;
-    }
+internal class ServerConfig(IPAddress ipAddress, int port)
+{
+    public IPAddress IpAddress { get; } = ipAddress;
+
+    public int Port { get; } = port;
 }
